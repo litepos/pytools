@@ -1,32 +1,73 @@
 # -*- coding: utf-8 -*-
 """
-Capslock+ QRun Helper — FINAL
+Capslock+ QRun Helper — FINAL (INI-Key Safe)
 --------------------------------
 脚本编码：UTF-8
 目标配置：按 UTF-16 读取/写入 Capslock+settings.ini
 
 规则：
 1) 递归扫描所选根目录下的 .exe / .lnk
-2) 写入时路径一律加双引号（Windows 路径更稳）
-3) [QRun] 内若已存在同名键：直接覆盖（不再追加重复行）
-4) 使用真实 CRLF 换行
+2) 键名(=左)严格符合 INI 规则：仅 A-Z/a-z/0-9/_，且不以数字开头；中文等会被剥离或转为下划线；重复自动加序号
+3) 写入时路径一律加双引号（Windows 路径更稳）
+4) [QRun] 内若已存在同名键：直接覆盖（不再追加重复行）
+5) 使用真实 CRLF 换行
 """
 import os
+import re
+import unicodedata
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
 SECTION = "QRun"
 CRLF = "\r\n"
 
+def sanitize_key(raw_name: str) -> str:
+    """
+    将任意文件名安全转换为 INI 合法键名：
+    - 只允许 [A-Za-z0-9_]
+    - 首字符必须为字母或下划线
+    - 中文/全角等统一剥离；非法字符替换为 '_'
+    - 连续下划线合并；首尾下划线去除
+    - 若结果为空或首字符不合法，则加前缀 'APP_'
+    """
+    if raw_name is None:
+        raw_name = ""
+    # 先做 Unicode 兼容分解，再去除非 ASCII
+    norm = unicodedata.normalize("NFKD", raw_name)
+    ascii_only = norm.encode("ascii", "ignore").decode("ascii")
+    # 非法字符替换为下划线
+    safe = re.sub(r"[^A-Za-z0-9_]", "_", ascii_only)
+    # 合并多余下划线并裁剪
+    safe = re.sub(r"_+", "_", safe).strip("_")
+
+    # 空或首字符不合法时加前缀
+    if not safe or not re.match(r"[A-Za-z_]", safe[0]):
+        safe = ("APP_" + safe) if safe else "APP"
+
+    return safe
+
 def scan_executables(root_dir):
+    """
+    返回 [(safe_key, full_path, raw_key)]
+    safe_key 已按 INI 规则规范化并去重
+    """
     results = []
+    used = set()  # 跟踪已用键名，避免冲突
     for r, _, files in os.walk(root_dir):
         for n in files:
             ext = os.path.splitext(n)[1].lower()
             if ext in (".exe", ".lnk"):
-                key = os.path.splitext(n)[0]
+                raw_key = os.path.splitext(n)[0]
+                base = sanitize_key(raw_key)
+                key = base
+                # 去重：若键名已存在，加递增后缀
+                idx = 2
+                while key in used:
+                    key = f"{base}_{idx}"
+                    idx += 1
+                used.add(key)
                 full = os.path.join(r, n)
-                results.append((key, full))
+                results.append((key, full, raw_key))
     return results
 
 def read_utf16(path):
@@ -58,7 +99,7 @@ def parse_section_as_dict(section_lines):
     d = {}
     for ln in section_lines:
         s = ln.lstrip()
-        if not s or s.startswith(";"):  # 注释/空行
+        if not s or s.startswith(";") or s.startswith("#"):  # 注释/空行
             continue
         if "=" in ln:
             k, v = ln.split("=", 1)
@@ -77,7 +118,6 @@ def rebuild_section_text(section_dict, section=SECTION):
     out = [f"[{section}]{CRLF}"]
     for k in sorted(section_dict.keys()):
         v = section_dict[k]
-        # 确保每一项独立一行
         out.append(f"{k}={v}{CRLF}")
     return "".join(out)
 
@@ -93,11 +133,9 @@ def upsert_entries(text, items, section=SECTION):
     if s is None:
         new_lines = []
         new_lines.append(f"[{section}]{CRLF}")
-        # ALWAYS quote paths
         for k, v in items:
             v = normalize_path(v)
             new_lines.append(f"{k}={v}{CRLF}")
-        # 末尾拼接
         if lines and not (lines[-1].endswith("\n") or lines[-1].endswith("\r")):
             lines[-1] += CRLF
         return "".join(lines + new_lines)
@@ -119,26 +157,26 @@ def upsert_entries(text, items, section=SECTION):
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Capslock+ QRun Helper (Final, UTF-8 script / UTF-16 INI)")
-        self.geometry("820x520")
+        self.title("Capslock+ QRun Helper (Final, UTF-8 script / UTF-16 INI / INI-Key Safe)")
+        self.geometry("900x560")
 
         self.var_dir = tk.StringVar()
         self.var_ini = tk.StringVar()
 
         self._build_ui()
 
-        self.candidates = []  # [(key, path)]
-        self.items_for_write = []  # [(key, path)]
+        self.candidates = []       # [(safe_key, path, raw_key)]
+        self.items_for_write = []  # [(safe_key, path)]
         self.existing_map = {}
 
     def _build_ui(self):
         top = ttk.Frame(self, padding=10); top.pack(fill="x")
         ttk.Label(top, text="扫描根目录：").grid(row=0, column=0, sticky="w")
-        ttk.Entry(top, textvariable=self.var_dir, width=70).grid(row=0, column=1, padx=5, sticky="we")
+        ttk.Entry(top, textvariable=self.var_dir, width=80).grid(row=0, column=1, padx=5, sticky="we")
         ttk.Button(top, text="选择…", command=self.pick_dir).grid(row=0, column=2)
 
         ttk.Label(top, text="settings.ini（UTF-16）：").grid(row=1, column=0, sticky="w", pady=(6,0))
-        ttk.Entry(top, textvariable=self.var_ini, width=70).grid(row=1, column=1, padx=5, sticky="we", pady=(6,0))
+        ttk.Entry(top, textvariable=self.var_ini, width=80).grid(row=1, column=1, padx=5, sticky="we", pady=(6,0))
         ttk.Button(top, text="选择…", command=self.pick_ini).grid(row=1, column=2, pady=(6,0))
 
         btns = ttk.Frame(self, padding=(10,0)); btns.pack(fill="x")
@@ -147,15 +185,15 @@ class App(tk.Tk):
 
         mid = ttk.Frame(self, padding=10); mid.pack(fill="both", expand=True)
         self.tree = ttk.Treeview(mid, columns=("k","p","s"), show="headings", height=14)
-        self.tree.heading("k", text="键名")
+        self.tree.heading("k", text="键名（已规范）")
         self.tree.heading("p", text="路径（写入时自动加双引号）")
         self.tree.heading("s", text="状态")
-        self.tree.column("k", width=180, anchor="w")
+        self.tree.column("k", width=220, anchor="w")
         self.tree.column("p", width=560, anchor="w")
-        self.tree.column("s", width=70, anchor="center")
+        self.tree.column("s", width=80, anchor="center")
         self.tree.pack(fill="both", expand=True)
 
-        self.log = tk.Text(self, height=6); self.log.pack(fill="both", padx=10, pady=(0,10))
+        self.log = tk.Text(self, height=7); self.log.pack(fill="both", padx=10, pady=(0,10))
 
     def log_append(self, s):
         self.log.insert("end", s + "\n")
@@ -182,6 +220,7 @@ class App(tk.Tk):
         for i in self.tree.get_children():
             self.tree.delete(i)
 
+        # 扫描并生成安全键名
         self.candidates = scan_executables(root)
 
         # 读取现有 [QRun] 键集
@@ -190,30 +229,42 @@ class App(tk.Tk):
         except UnicodeError:
             messagebox.showerror("编码错误", "settings.ini 不是 UTF-16 或已损坏。"); return
 
-        # 建立已有键 => 值 映射
         lines, s, e = get_qrun_bounds(text, SECTION)
         self.existing_map = {}
         if s is not None:
             self.existing_map = parse_section_as_dict(lines[s+1:e])
 
-        # 本次写入集合（去重，以最后一次出现为准）
+        # 汇总写入集合（同名键用扫描阶段已去重后的 safe_key）
         latest = {}
-        for k, p in self.candidates:
-            latest[k] = p  # 同名键以最后一个为准
+        rename_logs = []
+        for safe_key, p, raw_key in self.candidates:
+            latest[safe_key] = p
+            if safe_key != raw_key:
+                rename_logs.append(f'  - "{raw_key}" -> {safe_key}')
 
         self.items_for_write = []
+        cnt_new, cnt_cover, cnt_same = 0, 0, 0
         for k, p in latest.items():
-            # 状态：已有且相同 -> 已有(同值)；已有但不同 -> 覆盖；不存在 -> 新增
             new_v = normalize_path(p)
             old_v = self.existing_map.get(k)
             status = "新增"
             if old_v is not None:
-                # old_v 可能未带引号/斜杠方向不同，这里只做字符串比较；实际写入会规范化
                 status = "已有(同值)" if old_v == new_v else "覆盖"
+            if status == "新增": cnt_new += 1
+            elif status == "覆盖": cnt_cover += 1
+            else: cnt_same += 1
+
             self.items_for_write.append((k, p))
             self.tree.insert("", "end", values=(k, p, status))
 
-        self.log_append(f"扫描完成：候选 {len(self.candidates)}，实际写入项 {len(self.items_for_write)}（同名自动后者覆盖）。")
+        self.log_append(f"扫描完成：候选 {len(self.candidates)}，实际写入项 {len(self.items_for_write)}（同名已自动去重）。")
+        if rename_logs:
+            self.log_append("键名规范化映射（原始名 -> 规范键名）：")
+            for ln in rename_logs[:100]:
+                self.log_append(ln)
+            if len(rename_logs) > 100:
+                self.log_append(f"... 共 {len(rename_logs)} 项，已截断显示。")
+        self.log_append(f"统计：新增 {cnt_new}，覆盖 {cnt_cover}，已有(同值) {cnt_same}。")
 
     def on_write(self):
         ini = self.var_ini.get().strip()
@@ -229,7 +280,7 @@ class App(tk.Tk):
             bak = ini + ".bak_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
             shutil.copyfile(ini, bak)
 
-            # 覆盖/新增写入
+            # 覆盖/新增写入（内部会统一加双引号）
             new_text = upsert_entries(text, self.items_for_write, SECTION)
             write_utf16(ini, new_text)
         except Exception as e:
