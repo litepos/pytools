@@ -14,6 +14,8 @@ Capslock+ QRun Helper — FINAL
 import os
 import re
 import unicodedata
+import re
+import unicodedata
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
