@@ -1,0 +1,118 @@
+# Rule file (regex per line; blank lines and lines starting with # are ignored)
+# Target dirs (priority by order; first match wins):
+# dev_tools, db_tools, office_tools, design_media, testing_tools,
+# network_tools, ai_tools, system_tools, cloud_sync, communication,
+# enterprise_ql, install_misc
+#
+# Notes:
+# - Regex are case-insensitive
+# - If nothing matches:
+#   - .exe/.msi/.zip/.7z/.rar -> install_misc
+#   - directory (folder) -> install_misc
+# - Scan only the top-level of chosen root (non-recursive)
+# - Do NOT rename files or folders
+#
+# ======================== RULES ========================
+
+# target_dir: dev_tools
+idea|intellij
+webstorm
+vscode|visual\s*studio\s*code
+windsurf
+cursor
+mobaxterm
+docker
+git(\b|[-_])
+python[-_\s]?\d
+node[-_\s]?js|node-v?\d
+jdk|openjdk|graalvm
+java\b
+tomcat\b
+apache[-_]?maven|maven[-_]?3\.\d+
+redis\b
+frp(\b|[-_])|frp[-_]?win
+nssm\b
+servercore\b
+software\s*server\b
+
+# target_dir: db_tools
+toad(\.for\.oracle)?
+\b dbeaver \b
+pentaho|pdi[-_]?ce
+odac|instantclient|oracle\s*client|odtforvs
+mysql[-_\s]installer|mariadb[-_\s]setup
+finereport
+navicat|plsql(\s*developer)?
+
+# target_dir: office_tools
+office\s*tool|office\d{4}|microsoft\s*office
+wps(\s*office)?
+acrobat|pdf[-_]?xchange|pdf\s*xchange
+\b acdsee \b
+notion
+utools
+sticky\s*notes?
+freefilesync
+obsidian
+xmind|mindmanager|mindnode
+everything[-_.]?\d
+pc[-_]?mobility[-_]?print(\b|[-_])|mobility[-_]?print
+
+# target_dir: design_media
+photoshop|adobe\s*photoshop
+axure
+insta360|capcut|bandicam|potplayer|vlc|obs|qmplay|iptvnator|panorado
+xnview|faststone|fsviewer|koodo\s*reader|mp3tag|mp3val
+photo(\b|[-_])
+电视盒子|tv[-_]?box
+
+# target_dir: testing_tools
+soapui
+postman
+apifox
+jmeter
+
+# target_dir: network_tools
+clash(\.for\.windows)?|mihomo|smartproxy|proxifier|v2rayn|flclash|sing[-_]?box
+aria2|motrix|bitcomet
+winscp|putty|xshell|kdeconnect
+remotedesktop|awe?sun|sunlogin|rdp
+net[ -_]?work[ -_]?manager|iperf|wireguard
+
+# target_dir: ai_tools
+tmspeech|whisper|ollama|comfyui|stable[-_ ]diffusion|localai|kobold
+openai|chatgpt|lmstudio
+
+# target_dir: system_tools
+vmware|virtual(box|ization)?
+driver|驱动|wosign|签名|certificate|cert
+veracrypt|mactype|autohotkey|twinkle\.tray
+windowsdesktop[-_]?runtime|dotnet[-_]?runtime|vc[-_]?redist|redistributable
+7z\d+|winrar|zip\s*tool
+cleanup|optimizer|diagnostic|sysdiag|windowscleaner|pc[_-]?fresh
+mous(e|e)?withoutborders|barrier|remote\s?mouse
+mactype|twinkle\.?tray|mhotspot
+l15150|epson|printer|打印机|驱动总裁
+# === New vendor & device keywords for laptops/printers/drivers ===
+dell|thinkpad|lenovo|hp|huawei|honor|asus|acer|msi|xiaomi|mi\s*notebook|surface
+chipset|audio|sound|lan|ethernet|wifi|wireless|bluetooth|bt|vga|graphics|nvidia|amd|intel
+bios|uefi|firmware|firmware[-_]?update|microcode
+scanner|scan|fax|plotter|label\s*printer|zebra|brother|canon|ricoh|kyocera|fuji|xerox|sharp
+# target_dir: cloud_sync
+embyserver|emby
+syncthing
+rclone
+syncclipboard|clipboard[-_]?remote
+115|baidu(net)?disk|quark(cloud)?drive|adrive|rai?drive|mountain\s*duck
+onedrive|alipan|aliyundrive|cloud|pan
+
+# target_dir: communication
+wechat|ding(talk)?|qq(\b|[_-])|telegram|tsetup|teams|remotemouse|kdeconnect
+slack|zoom|skype|feishu|lark
+android(app)?|call\s*recordings|gt7pro
+
+# target_dir: enterprise_ql
+\bqilu\b|齐鲁|ql[\W_]
+
+# target_dir: install_misc
+# (no rules needed; fallback bucket)
