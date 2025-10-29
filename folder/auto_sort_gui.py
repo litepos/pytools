@@ -22,7 +22,7 @@ import shutil
 import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Iterable
 
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
@@ -37,28 +37,21 @@ class RuleBlock:
 # 规则文件：与脚本同目录
 RULE_FILE = Path(__file__).with_name("category_rules.txt")
 
-# 默认分类目录（会自动创建；可与规则文件里的 target_dir 对齐）
+# 顶层分类目录（与 category_rules.txt 的 # target_dir 保持一致）
 DEFAULT_TARGET_DIRS = [
-    "dev_tools",
-    "db_tools",
-    "office_tools",
-    "design_media",
-    "testing_tools",
-    "network_tools",
-    "ai_tools",
-    "system_tools",
-    "cloud_sync",
-    "communication",
-    "enterprise_ql",
-    "software_portable",   # 建议：便携/绿色/免安装类（若规则命中）
-    "install_misc",
+    "01_office","02_dev","03_database","04_network","05_system",
+    "06_drivers","07_media","08_communication","09_os",
+    "10_input","11_maps","12_enterprise","99_misc",
 ]
+
+# Portable 索引目录（仅放 .url 与清单）
+PORTABLE_INDEX_DIR = "90_portable"
 
 # 兜底识别为“安装包/压缩包”的扩展名
 INSTALL_EXT = {".exe", ".msi"}
 ARCHIVE_EXT = {".zip", ".7z", ".rar"}
 
-
+# --------- rules loader ---------
 def load_rules(rule_file: Path) -> List[RuleBlock]:
     """从 category_rules.txt 读取规则块，按出现顺序作为优先级；每个块以 '# target_dir: <name>' 开头。"""
     if not rule_file.exists():
@@ -85,9 +78,50 @@ def load_rules(rule_file: Path) -> List[RuleBlock]:
         blocks.append(RuleBlock(current_target, current_patterns))
     return blocks
 
+def load_portable_patterns(rule_file: Path) -> List[re.Pattern]:
+    """
+    从 category_rules.txt 读取 '# portable_mark' 段，作为便携识别用正则（不影响分类）。
+    语法：
+      # portable_mark
+      <regex1>
+      <regex2>
+      ...
+      # target_dir: 01_office   ← 碰到新块或文件结束即停止 portable 段
+    """
+    if not rule_file.exists():
+        return []
+    pats: List[re.Pattern] = []
+    in_block = False
+    with rule_file.open("r", encoding="utf-8") as f:
+        for raw in f:
+            line = raw.strip()
+            if not line:
+                continue
+            low = line.lower()
+            if low.startswith("# target_dir:"):
+                if in_block:  # portable 段结束
+                    break
+                else:
+                    continue
+            if low.startswith("# portable_mark"):
+                in_block = True
+                continue
+            if in_block:
+                try:
+                    pats.append(re.compile(line, re.I))
+                except re.error as e:
+                    raise ValueError(f"Invalid portable regex: {line} -> {e}")
+    return pats
+
+def is_portable(name: str, portable_patterns: Iterable[re.Pattern]) -> bool:
+    nm = name.lower()
+    for p in portable_patterns:
+        if p.search(nm):
+            return True
+    return False
 
 def choose_target(item: Path, blocks: List[RuleBlock]) -> Tuple[str, str]:
-    """返回 (target_dir, reason)。按规则块先后匹配；无命中按扩展/目录兜底到 install_misc。"""
+    """返回 (target_dir, reason)。按规则块先后匹配；无命中则兜底到 99_misc。"""
     name = item.name.lower()
     for blk in blocks:
         for pat in blk.patterns:
@@ -95,10 +129,10 @@ def choose_target(item: Path, blocks: List[RuleBlock]) -> Tuple[str, str]:
                 return blk.target_dir, f"match:{blk.target_dir}:{pat.pattern}"
     suffix = item.suffix.lower()
     if suffix in INSTALL_EXT or suffix in ARCHIVE_EXT:
-        return "install_misc", f"fallback:{suffix or 'archive'}"
+        return "99_misc", f"fallback:{suffix or 'archive'}"
     if item.is_dir():
-        return "install_misc", "fallback:dir"
-    return "install_misc", "fallback:other"
+        return "99_misc", "fallback:dir"
+    return "99_misc", "fallback:other"
 
 
 # ------------------ GUI ------------------
@@ -108,11 +142,12 @@ class AutoSortApp(tk.Tk):
         super().__init__()
         self.title("Auto Sort Softwares (GUI)")
         self.minsize(1000, 620)
-        self.geometry("1150x700")
+        self.geometry("1200x720")
         self.configure(padx=8, pady=8)
         self._make_style()
 
         self.rule_blocks: List[RuleBlock] = []
+        self.portable_patterns: List[re.Pattern] = []
         self.root_dir: Path = None
         self.plan: List[Dict] = []  # [{"path": Path, "target": str, "reason": str, "iid": str}]
         self.msg_queue = queue.Queue()
@@ -137,8 +172,11 @@ class AutoSortApp(tk.Tk):
         self.btn_move = ttk.Button(top, text="执行移动", command=self.exec_move)
         self.btn_move.grid(row=0, column=4, padx=6)
 
+        self.btn_portable = ttk.Button(top, text="生成Portable索引", command=self.build_portable_index)
+        self.btn_portable.grid(row=0, column=5, padx=6)
+
         self.btn_clear = ttk.Button(top, text="清空结果", command=self.clear_all)
-        self.btn_clear.grid(row=0, column=5, padx=(6, 0))
+        self.btn_clear.grid(row=0, column=6, padx=(6, 0))
 
         # 选项
         opt = ttk.Frame(self)
@@ -160,9 +198,9 @@ class AutoSortApp(tk.Tk):
         self.tree.heading("target", text="分类")
         self.tree.heading("reason", text="命中规则")
         self.tree.heading("status", text="状态")
-        self.tree.column("name", width=420, anchor="w")
-        self.tree.column("target", width=140, anchor="w")
-        self.tree.column("reason", width=420, anchor="w")
+        self.tree.column("name", width=460, anchor="w")
+        self.tree.column("target", width=200, anchor="w")
+        self.tree.column("reason", width=460, anchor="w")
         self.tree.column("status", width=110, anchor="center")
 
         vsb = ttk.Scrollbar(mid, orient="vertical", command=self.tree.yview)
@@ -208,6 +246,7 @@ class AutoSortApp(tk.Tk):
         # 加载规则
         try:
             self.rule_blocks = load_rules(RULE_FILE)
+            self.portable_patterns = load_portable_patterns(RULE_FILE)
         except FileNotFoundError:
             messagebox.showerror("规则文件缺失", f"未找到规则文件：{RULE_FILE.name}\n请将该文件放到脚本同目录。")
         except Exception as e:
@@ -270,10 +309,12 @@ class AutoSortApp(tk.Tk):
 
         count = 0
         for child in self.root_dir.iterdir():
-            if child.name.startswith("~$"):
+            # 忽略系统/临时目录与 portable 索引目录
+            if child.name.startswith(("~$", ".")) or child.name == PORTABLE_INDEX_DIR:
                 continue
             if child.name in {"System Volume Information", "$RECYCLE.BIN"}:
                 continue
+
             target, reason = choose_target(child, self.rule_blocks)
             iid = self.tree.insert("", "end", values=(child.name, target, reason, "等待"))
             self.plan.append({"path": child, "target": target, "reason": reason, "iid": iid})
@@ -352,6 +393,7 @@ class AutoSortApp(tk.Tk):
         self.btn_scan.config(state="disabled")
         self.btn_move.config(state="disabled")
         self.btn_clear.config(state="disabled")
+        self.btn_portable.config(state="disabled")
 
         t = threading.Thread(target=self._worker_move, daemon=True)
         t.start()
@@ -396,7 +438,7 @@ class AutoSortApp(tk.Tk):
             removed = 0
             for child in list(self.root_dir.iterdir()):
                 try:
-                    if child.is_dir() and child.name not in DEFAULT_TARGET_DIRS:
+                    if child.is_dir() and child.name not in DEFAULT_TARGET_DIRS and child.name != PORTABLE_INDEX_DIR:
                         if not any(child.iterdir()):  # 空目录
                             child.rmdir()
                             removed += 1
@@ -408,7 +450,59 @@ class AutoSortApp(tk.Tk):
         self.btn_scan.config(state="normal")
         self.btn_move.config(state="normal")
         self.btn_clear.config(state="normal")
+        self.btn_portable.config(state="normal")
         messagebox.showinfo("完成", "执行结束，详见日志。")
+
+    # ---------------- Portable index ----------------
+    def build_portable_index(self):
+        """在根目录创建 90_portable，生成 .url 快捷方式与 portable_list.txt（只做索引，不复制文件）"""
+        if not self.root_dir or not self.root_dir.exists():
+            messagebox.showwarning("未选择目录", "请先选择有效目录。")
+            return
+        if not self.portable_patterns:
+            messagebox.showwarning("未配置规则", "规则文件中未定义 # portable_mark 段，无法识别便携软件。")
+            return
+
+        idx_dir = self.root_dir / PORTABLE_INDEX_DIR
+        idx_dir.mkdir(parents=True, exist_ok=True)
+
+        # 收集候选：根目录一层 + 各分类目录下一层
+        candidates: List[Path] = []
+        # 根目录
+        for child in self.root_dir.iterdir():
+            if child.name in {"System Volume Information", "$RECYCLE.BIN", PORTABLE_INDEX_DIR}:
+                continue
+            candidates.append(child)
+        # 各分类目录下一层
+        for cat in DEFAULT_TARGET_DIRS:
+            p = self.root_dir / cat
+            if p.is_dir():
+                for sub in p.iterdir():
+                    candidates.append(sub)
+
+        # 生成 .url 与清单
+        created = 0
+        lines = []
+        for p in candidates:
+            name = p.name
+            if is_portable(name, self.portable_patterns):
+                target_uri = p.resolve().as_uri()  # file:///D:/...
+                safe_name = re.sub(r'[\\/:*?"<>|]+', "_", name)[:200]
+                url_file = idx_dir / f"{safe_name}.url"
+                with url_file.open("w", encoding="utf-8") as f:
+                    f.write("[InternetShortcut]\n")
+                    f.write(f"URL={target_uri}\n")
+                    f.write(f"IDList=\n")
+                created += 1
+                lines.append(f"{name}\t{p}")
+
+        with (idx_dir / "portable_list.txt").open("w", encoding="utf-8") as f:
+            f.write(time.strftime("Generated at %Y-%m-%d %H:%M:%S\n"))
+            f.write(f"Total: {created}\n\n")
+            for line in sorted(lines, key=str.lower):
+                f.write(line + "\n")
+
+        self.log(f"Portable 索引生成完成：{created} 个条目，目录：{idx_dir}")
 
     def clear_all(self):
         """清空主表、日志和进度条，重置计划"""

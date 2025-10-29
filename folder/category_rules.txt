@@ -1,118 +1,101 @@
-# Rule file (regex per line; blank lines and lines starting with # are ignored)
-# Target dirs (priority by order; first match wins):
-# dev_tools, db_tools, office_tools, design_media, testing_tools,
-# network_tools, ai_tools, system_tools, cloud_sync, communication,
-# enterprise_ql, install_misc
-#
-# Notes:
-# - Regex are case-insensitive
-# - If nothing matches:
-#   - .exe/.msi/.zip/.7z/.rar -> install_misc
-#   - directory (folder) -> install_misc
-# - Scan only the top-level of chosen root (non-recursive)
-# - Do NOT rename files or folders
-#
-# ======================== RULES ========================
+# portable_mark
+portable|便携|绿色|green|免安装|单文件
+winscp.*portable|dittoportable
+snipaste|putty|total.?cmd|total.?commander|windowtabs|tpcapslock|capslock\+
+windowsupdateblocker|win[-_ ]?menu[-_ ]?editor
+wscfree|wdcfree|uninstall\.tool
+小梦音乐|uz影视|yidaapp
+formatfactory|mp3(tag|val)
+komorebi|koodo
+easy[-_ ]?tidy|easy[-_ ]?re[-_ ]?namer
+exiftoolgui|exif[ _-]?date[ _-]?changer
+dmde|diskgenius|cpu[-_ ]?z|everest|foldersizes
+stairspeedtest|iptv[-_ ]?update[-_ ]?tool
+rustdesk|v2rayn|sing[-_ ]?box|clashmi|flclash|networkmanager
+copyq
 
-# target_dir: dev_tools
-idea|intellij
-webstorm
-vscode|visual\s*studio\s*code
-windsurf
-cursor
-mobaxterm
-docker
-git(\b|[-_])
-python[-_\s]?\d
-node[-_\s]?js|node-v?\d
-jdk|openjdk|graalvm
-java\b
-tomcat\b
-apache[-_]?maven|maven[-_]?3\.\d+
-redis\b
-frp(\b|[-_])|frp[-_]?win
-nssm\b
-servercore\b
-software\s*server\b
+# target_dir: 01_office
+office|wps|sticky|notes|notion|acrobat|pdf[-_ ]?xchange|pdf
+efficient[-_ ]?sticky|vov[-_ ]?sticky
+word|excel|ppt|文档|表格|演示
 
-# target_dir: db_tools
-toad(\.for\.oracle)?
-\b dbeaver \b
-pentaho|pdi[-_]?ce
-odac|instantclient|oracle\s*client|odtforvs
-mysql[-_\s]installer|mariadb[-_\s]setup
-finereport
-navicat|plsql(\s*developer)?
+# target_dir: 02_dev
+java|jdk|tomcat|maven|python|node|nvm|git|docker|redis
+idea|webstorm|vscode|windsurf|cursor|uestudio|certimate
+pytools\b|memo(trace)?\b
 
-# target_dir: office_tools
-office\s*tool|office\d{4}|microsoft\s*office
-wps(\s*office)?
-acrobat|pdf[-_]?xchange|pdf\s*xchange
-\b acdsee \b
-notion
-utools
-sticky\s*notes?
-freefilesync
-obsidian
-xmind|mindmanager|mindnode
-everything[-_.]?\d
-pc[-_]?mobility[-_]?print(\b|[-_])|mobility[-_]?print
+# target_dir: 03_database
+toad|dbeaver|instantclient|odac|odtforvs|pentaho|pdi|finereport
+mysql[-_ ]installer|oracle|postgres|etl|database|sql client
 
-# target_dir: design_media
-photoshop|adobe\s*photoshop
-axure
-insta360|capcut|bandicam|potplayer|vlc|obs|qmplay|iptvnator|panorado
-xnview|faststone|fsviewer|koodo\s*reader|mp3tag|mp3val
-photo(\b|[-_])
-电视盒子|tv[-_]?box
-
-# target_dir: testing_tools
-soapui
-postman
-apifox
-jmeter
-
-# target_dir: network_tools
-clash(\.for\.windows)?|mihomo|smartproxy|proxifier|v2rayn|flclash|sing[-_]?box
+# target_dir: 04_network
+clash(\.for\.windows)?|mihomo|flclash|clashmi
+v2rayn|sing[-_ ]?box
+proxifier|smartproxy
+rustdesk|rdpwrap|remotedesktop|putty|winscp
+mobaxterm|xshell|networkmanager
 aria2|motrix|bitcomet
-winscp|putty|xshell|kdeconnect
-remotedesktop|awe?sun|sunlogin|rdp
-net[ -_]?work[ -_]?manager|iperf|wireguard
+syncthing|rclone|raidrive|mountain[-_ ]duck
+baidu(net)?disk|quark(cloud)?drive|adrive
+iperf|stairspeedtest
+iptv[-_ ]?update[-_ ]?tool|iptvnator
+freefilesync
+emby|syncclipboard
+remote(mouse)?
+e[mM]ule
+tv盒子助手
+net(work)?|网络|远控|代理
 
-# target_dir: ai_tools
-tmspeech|whisper|ollama|comfyui|stable[-_ ]diffusion|localai|kobold
-openai|chatgpt|lmstudio
+# target_dir: 05_system
+7z(\d+)?-?x64|winrar
+diskgenius|dmde|veracrypt
+mactype|autohotkey|twinkle\.?tray
+everything|foldersizes|copyq|ditto|qttabbar|processmonitor
+windowsdesktop[-_ ]runtime|wassetup
+pc[-_ ]fresh|windowscleaner|defenderremover
+razersynapse|steelseries|lghub
+windowsupdateblocker|win[-_ ]?menu[-_ ]?editor|windowtabs|tpcapslock|capslock\+
+uninstall\.tool
+wdcfree|wscfree|usbdeview
+total.?cmd|total.?commander
+系统调校|optimizer|utility|工具箱
 
-# target_dir: system_tools
-vmware|virtual(box|ization)?
-driver|驱动|wosign|签名|certificate|cert
-veracrypt|mactype|autohotkey|twinkle\.tray
-windowsdesktop[-_]?runtime|dotnet[-_]?runtime|vc[-_]?redist|redistributable
-7z\d+|winrar|zip\s*tool
-cleanup|optimizer|diagnostic|sysdiag|windowscleaner|pc[_-]?fresh
-mous(e|e)?withoutborders|barrier|remote\s?mouse
-mactype|twinkle\.?tray|mhotspot
-l15150|epson|printer|打印机|驱动总裁
-# === New vendor & device keywords for laptops/printers/drivers ===
-dell|thinkpad|lenovo|hp|huawei|honor|asus|acer|msi|xiaomi|mi\s*notebook|surface
-chipset|audio|sound|lan|ethernet|wifi|wireless|bluetooth|bt|vga|graphics|nvidia|amd|intel
-bios|uefi|firmware|firmware[-_]?update|microcode
-scanner|scan|fax|plotter|label\s*printer|zebra|brother|canon|ricoh|kyocera|fuji|xerox|sharp
-# target_dir: cloud_sync
-embyserver|emby
-syncthing
-rclone
-syncclipboard|clipboard[-_]?remote
-115|baidu(net)?disk|quark(cloud)?drive|adrive|rai?drive|mountain\s*duck
-onedrive|alipan|aliyundrive|cloud|pan
+# target_dir: 06_drivers
+printer|打印机|hpeasystart|mobility[-_ ]?print|驱动总裁|driver|驱动
+xbydriver|toshiba|东芝|l15150|epson|hp|canon|scanner|plotter
 
-# target_dir: communication
-wechat|ding(talk)?|qq(\b|[_-])|telegram|tsetup|teams|remotemouse|kdeconnect
-slack|zoom|skype|feishu|lark
-android(app)?|call\s*recordings|gt7pro
+# target_dir: 07_media
+photoshop|acdsee|axure
+insta360|capcut|bandicam|obs|vlc|potplayer|xnview|panorado|qmplay
+koodo[-_ ]?reader|sonovel
+snipaste|fscapture
+mp3tag|mp3val
+formatfactory
+uz影视|小梦音乐
+iptvnator
+设计|视频|影音|图像|多媒体|截图|录屏|播放器|相机
 
-# target_dir: enterprise_ql
-\bqilu\b|齐鲁|ql[\W_]
+# target_dir: 08_communication
+wechat|qq(\b|[_-])|ding|telegram|tsetup
+chrome|edge|browser
+teams|slack|zoom|communication|chat|钉钉|浏览器
 
-# target_dir: install_misc
-# (no rules needed; fallback bucket)
+# target_dir: 09_os
+windows|server|centos|linux|iso|镜像|操作系统|os
+硬盘安装器|rufus|ventoy
+vmware|virtual(box)?
+kms|激活|termsrv|license|key
+
+# target_dir: 10_input
+rime|小狼毫|搜狗|输入法|wubi
+font|字体|ttf|otf|ime|input
+
+# target_dir: 11_maps
+地图|map|gis|地理|导航|osm|定位
+
+# target_dir: 12_enterprise
+齐鲁|qilu|ql[\W_]|智见|portal|agent|smartportal|smartai
+oa|sap|ecs|igix|内部|集团|企业|平台|系统
+
+# target_dir: 99_misc
+misc|unknown|未分类|temp|临时|其他
