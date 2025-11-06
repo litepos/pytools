@@ -30,7 +30,7 @@ DEFAULTS = {
     "poll_interval": "15s",             # 轮询变更间隔
     "vfs_cache_max_age": "30m",         # VFS 文件缓存寿命
     "attr_timeout": "10s",              # 文件属性缓存时长
-    "cache_dir": r"C:\rclone-cache"     # 本地缓存目录
+    "cache_dir": r"D:\Software\temp"     # 本地缓存目录
 }
 
 # ----------------- 基础工具函数 -----------------
