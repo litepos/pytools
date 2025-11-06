@@ -14,12 +14,12 @@ APP_NAME = "RcloneMountGUI"
 DEFAULTS = {
     "rclone_path": "",
     "remote": "alist:",
-    "drive": "Z:",
+    "drive": "W:",
     # 基础开关
     "vfs_writes": True,                 # 勾选启用 VFS 缓存参数
     "links": True,                      # 保留硬/符号链接元信息
     "network_mode": False,              # 默认不勾选
-    "volname": "AList WebDAV",
+    "volname": "AList",
     # WebDAV 远端
     "webdav_url": "https://sdumba.cn:5243/dav",
     "webdav_user": "admin",
