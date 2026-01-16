@@ -196,6 +196,8 @@ def build_mount_args(cfg):
         args += ["--network-mode"]
 
     args += ["--volname", cfg.get("volname") or "Rclone"]
+    # 强制日志级别为 ERROR，避免产生大量 DEBUG 日志
+    args += ["--log-level", "ERROR"]
     return args
 
 # ----------------- 主界面 -----------------

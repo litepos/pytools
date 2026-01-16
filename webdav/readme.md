@@ -106,12 +106,11 @@ Rclone 在 Windows 上挂载盘符依赖 **WinFsp 驱动**。
 > ✅ 提示：安装 WinFsp 后即可正常使用所有功能；
 > 建议首选“本地磁盘模式”，若需网络盘外观再勾选 `--network-mode`。
 
-
 ## 打包成 EXE（可选）
 
 有 Python 环境时运行即可；如果需要独立分发：
 
-<pre class="overflow-visible!" data-start="12608" data-end="12681"><div class="contain-inline-size rounded-2xl relative bg-token-sidebar-surface-primary"><div class="sticky top-9"><div class="absolute end-0 bottom-0 flex h-9 items-center pe-2"><div class="bg-token-bg-elevated-secondary text-token-text-secondary flex items-center gap-4 rounded-sm px-2 font-sans text-xs"></div></div></div><div class="overflow-y-auto p-4" dir="ltr"><code class="whitespace-pre! language-bash"><span><span>pip install pyinstaller
+pip install pyinstaller
 pyinstaller -F -w rclone_mount_gui.py
 </span></span></code></div></div></pre>
 
