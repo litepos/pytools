@@ -30,7 +30,7 @@ DEFAULTS = {
     "poll_interval": "15s",             # 轮询变更间隔
     "vfs_cache_max_age": "30m",         # VFS 文件缓存寿命
     "attr_timeout": "10s",              # 文件属性缓存时长
-    "cache_dir": r"D:\Software\temp"     # 本地缓存目录
+    "cache_dir": r"D:\sync\software\temp"  # 本地缓存目录
 }
 
 # ----------------- 基础工具函数 -----------------
@@ -85,15 +85,18 @@ def run_capture(cmd, cwd=None, timeout=15):
         return -1, "Timeout"
 
 def clean_old_mounts(drive):
+    si = subprocess.STARTUPINFO()
+    si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
     cmds = [
         ["cmd", "/c", f"net use {drive} /delete /y"],
         ["cmd", "/c", f"subst {drive} /D"],
         ["cmd", "/c", f"mountvol {drive} /D"],
-        ["cmd", "/c", "taskkill /f /im rclone.exe"]
+        ["taskkill", "/f", "/im", "rclone.exe"]
     ]
     for c in cmds:
         try:
-            subprocess.run(c, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(c, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                           startupinfo=si, creationflags=subprocess.CREATE_NO_WINDOW)
         except Exception:
             pass
 
@@ -142,25 +145,27 @@ def is_admin():
         return False
 
 def create_login_task():
-    workdir = os.path.dirname(os.path.abspath(sys.argv[0]))
-    script  = os.path.abspath(sys.argv[0])
-    py      = sys.executable or "python"
-    action  = f'/c cd /d "{workdir}" && "{py}" "{script}" --auto'
-    task_name = f"{APP_NAME}-Mount"
+    script = os.path.abspath(sys.argv[0])
+    task_name = APP_NAME + "-Mount"
 
-    # 关键：不要用 /RL HIGHEST；一定要 /RL LIMITED + /IT（交互式）
-    #      并明确 /RU 为当前用户名，使其跑在用户会话中，盘符就和手动双击一致可见
+    if getattr(sys, 'frozen', False):
+        tr = '"' + script + '" --auto'
+    else:
+        py = sys.executable or "python"
+        tr = '"' + py + '" "' + script + '" --auto'
+
     cmd = [
         "schtasks", "/Create",
         "/TN", task_name,
-        "/TR", f'cmd {action}',
+        "/TR", tr,
         "/SC", "ONLOGON",
-        "/RL", "LIMITED",        # ← 低权限（等价“不要最高权限运行”）
-        "/IT",                   # ← 仅当用户登录并在交互会话中运行
-        "/RU", getpass.getuser(),# ← 当前用户
+        "/DELAY", "0000:20",
+        "/RL", "LIMITED",
+        "/IT",
+        "/RU", getpass.getuser(),
         "/F"
     ]
-    return run_capture(cmd, timeout=10) + (task_name,)
+    return run_capture(cmd, timeout=30) + (task_name,)
 
 
 def delete_login_task():
@@ -447,7 +452,7 @@ class App(tk.Tk):
                     return
                 time.sleep(1)
             self.append_log("[WARN] 已启动，但盘符未就绪（网络/证书/权限？）")
-            self.lbl.config(text="⚠️ 已启动，但盘符未就绪（稍后刷新“此电脑”）")
+            self.lbl.config(text='⚠️ 已启动，但盘符未就绪（稍后刷新"此电脑"）')
             messagebox.showwarning("提示", "已启动挂载，但盘符未就绪。")
 
         threading.Thread(target=wait_ready, daemon=True).start()
